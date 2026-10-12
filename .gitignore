@@ -1,0 +1,6 @@
+__pycache__/
+*.pyc
+*.png
+build_report.json
+feed.xml
+apple.json
