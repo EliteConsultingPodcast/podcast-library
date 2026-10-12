@@ -63,6 +63,25 @@ def about(desc,maxp=5):
     paras=[re.sub(r'\s+',' ',html.unescape(re.sub('<[^>]+>','',p))).strip() for p in re.split(r'(?:<br\s*/?>\s*){2,}',d)]
     paras=[p for p in paras if len(p)>60 and not p.startswith('#') and 'http' not in p]
     return paras[:maxp]
+HEAD_RE=re.compile(r"^(?:(?:LESSON|PART|CHAPTER|KAPITEL|TEIL|BOOK|SECTION)\b.*|[IVXLC]+\.\s.{1,90}|\d{1,3}[.)]\s.{1,90}|(?=[^a-z]*[A-Z]{3})[^a-z]{4,120})$")
+INLINE_HEAD=re.compile(r"(?<=[a-z.!?:;)\"”])\s*(?=(?:LESSON|PART|CHAPTER|KAPITEL)\s+[IVXLC\d]+\b)")
+def fmt_desc(desc):
+    d=re.sub(r'^\s*<!\[CDATA\[|\]\]>\s*$','',desc.strip())
+    d=re.split(r'Become a supporter',d)[0]
+    d=re.sub(r'\(\d{2}:\d{2}:\d{2}\)[^<\n]*(?:<br\s*/?>)?','',d)
+    d=re.sub(r'(?i)</?(?:p|div|li|h\d)[^>]*>|<br\s*/?>','\n',d)
+    bold=set(html.unescape(re.sub(r'\s+',' ',re.sub('<[^>]+>','',b))).strip() for b in re.findall(r'(?is)<(?:b|strong)>(.*?)</(?:b|strong)>',d))
+    d=html.unescape(re.sub('<[^>]+>','',d))
+    d=INLINE_HEAD.sub('\n',d)
+    d=re.sub(r'(?<=[a-z][.!?])(?=[A-Z][a-z])',' ',d)
+    out=[]
+    for ln in d.split('\n'):
+        ln=re.sub(r'\s+',' ',ln).strip()
+        if not ln or 'http' in ln: continue
+        if ln in bold: out.append(f'<p class="dh"><strong>{E(ln)}</strong></p>')
+        elif HEAD_RE.match(ln) and len(ln)<=120: out.append(f'<h4>{E(ln)}</h4>')
+        else: out.append(f'<p>{E(ln)}</p>')
+    return ''.join(out)
 def secs(t):
     h,m,s=map(int,t.split(':')); return h*3600+m*60+s
 def hms(d):
@@ -102,6 +121,7 @@ article h1{color:#4A0A10;font-size:clamp(1.4rem,4vw,2.2rem);margin:.2rem 0}.by{c
 .part h3{margin-top:0;color:#4A0A10;font-size:1rem}ol.ch{list-style:none;padding-left:0;font-size:.92rem}ol.ch li{margin:.15rem 0}ol.ch time{color:#8a6a3a;font-family:monospace;margin-right:.4rem}
 iframe{width:100%;height:200px;border:0;border-radius:8px}.crumb{font-size:.85rem}
 footer{background:#4A0A10;color:#D4A24C;text-align:center;padding:1.5rem;margin-top:3rem;font-size:.85rem}footer a{color:#D4A24C}
+.desc{margin-top:1rem;font-size:.95rem}.desc summary{font-family:'Cinzel',serif;color:#4A0A10;cursor:pointer;font-weight:700}.desc h4{font-family:'Cinzel',serif;color:#4A0A10;margin:1.1rem 0 .3rem;font-size:.95rem}.desc p{margin:.5rem 0}.desc p.dh{margin-top:.8rem}
 @media(max-width:600px){.cover{float:none;display:block;margin:0 auto 1rem;width:60%}}'''
 def page(title,desc,path,body,img,jsonld,extra_head=''):
     url=SITE+path
@@ -155,14 +175,13 @@ def main():
             ch_html=''.join(f'<li><time>{a}</time>{E(b)}</li>' for a,b in chs)
             pl=f'<iframe loading="lazy" title="{E(e["title"])}" src="https://widget.spreaker.com/player?episode_id={e["id"]}&amp;theme=dark" allow="autoplay"></iframe>'
             links=f'<div class="btns light" style="justify-content:flex-start">{f"<a class=btn href={E(am)!r}>Apple Podcasts</a>" if am else f"<a class=btn href={APPLE!r}>Apple Podcasts</a>"}<a class="btn" href="{SPOTIFY}">Spotify</a><a class="btn" href="{E(e["link"] or SPREAKER)}">Spreaker</a></div>'
-            parts.append(f'<section class="part" id="part-{i+1}"><h3>{E(e["title"])}</h3><p class="by">{hms(e["dur"])}</p>{pl}{links}'+(f'<h3>Chapters</h3><ol class="ch">{ch_html}</ol>' if chs else '')+'</section>')
+            parts.append(f'<section class="part" id="part-{i+1}"><h3>{E(e["title"])}</h3><p class="by">{hms(e["dur"])}</p>{pl}{links}'+(f'<h3>Chapters</h3><ol class="ch">{ch_html}</ol>' if chs else '')+(f'<details class="desc" open><summary>Episode description</summary>{dh}</details>' if (dh:=fmt_desc(e['desc'])) else '')+'</section>')
             ld_eps.append({'@type':'PodcastEpisode','name':e['title'],'url':SITE+f'/books/{slug}/#part-{i+1}','datePublished':email.utils.parsedate_to_datetime(e['date']).date().isoformat(),
               'timeRequired':iso_dur(e['dur']),'associatedMedia':{'@type':'MediaObject','embedUrl':f'https://widget.spreaker.com/player?episode_id={e["id"]}'},'partOfSeries':{'@type':'PodcastSeries','name':SHOW,'url':SITE+'/'},'sameAs':[x for x in [am,e['link']] if x]})
         if summ:
             sm='<h2>Summary</h2>'+''.join(f'<p>{E(p)}</p>' for p in summ[0])+'<h2>Key ideas</h2><ul class="ideas">'+''.join(f'<li>{E(x)}</li>' for x in summ[1])+'</ul>'
         else:
-            ab=about(first['desc'])
-            sm=('<h2>About this book</h2>'+''.join(f'<p>{E(p)}</p>' for p in ab)) if ab else ''
+            sm=''
         ld={'@context':'https://schema.org','@graph':[{'@type':'Book','name':title,'author':{'@type':'Person','name':author},'inLanguage':'en','image':img,'url':SITE+f'/books/{slug}/','description':mdesc},*ld_eps]}
         body=f'''<main class="wrap"><p class="crumb"><a href="/">Library</a> › <a href="/#{slugify(author)}">{E(author)}</a></p><article>
 <img class="cover" src="{E(img.replace('t_rss_itunes_square_1400','t_rss_itunes_square_1400'))}" alt="{E(title)} cover" width="180" height="180" loading="lazy">
