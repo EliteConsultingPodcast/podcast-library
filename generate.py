@@ -8,6 +8,7 @@ from summaries import S
 HERE=os.path.dirname(os.path.abspath(__file__)); OUT=os.path.join(HERE,'docs')
 FEED='https://www.spreaker.com/show/5835231/episodes/feed'
 SITE='https://podcast.eliteconsult.eu'
+HAKANAI_SITE_KEY = os.environ.get("HAKANAI_SITE_KEY", "3d43c412-0958-459d-bebb-18c90c3925ca")
 SHOW='SECRETS OF SUCCESS & WEALTH: Hidden Laws of Money, Power & Success'
 APPLE='https://podcasts.apple.com/ca/podcast/secrets-of-success-wealth-hidden-laws-of-money/id1797271143'
 SPOTIFY='https://open.spotify.com/show/2NNblMHxoxCLs9TtRtr12T'
@@ -187,7 +188,7 @@ def main():
 <img class="cover" src="{E(img.replace('t_rss_itunes_square_1400','t_rss_itunes_square_1400'))}" alt="{E(title)} cover" width="180" height="180" loading="lazy">
 <h1>{E(title)}</h1><p class="by">by {E(author)} · {len(lst)} episode{'s' if len(lst)>1 else ''} · full audiobook reading</p>
 <div class="btns light" style="justify-content:flex-start"><a class="btn" href="#part-1">▶ Listen now</a></div>
-{sm}<h2>Listen{'' if len(lst)==1 else ' – all parts'}</h2>{''.join(parts)}<section id="comments" style="margin-top:2.5em"><h2>Kommentare / Comments</h2><p style="opacity:.8">Fragen oder Gedanken zu diesem Buch? Schreib uns hier (GitHub-Login nötig). · Questions or thoughts? Leave a comment.</p><script src="https://giscus.app/client.js" data-repo="EliteConsultingPodcast/podcast-library" data-repo-id="R_kgDOVF1Ywg" data-category="Announcements" data-category-id="DIC_kwDOVF1Yws4DJ5f_" data-mapping="pathname" data-strict="0" data-reactions-enabled="1" data-emit-metadata="0" data-input-position="top" data-theme="dark" data-lang="de" data-loading="lazy" crossorigin="anonymous" async></script></section></article></main>'''
+{sm}<h2>Listen{'' if len(lst)==1 else ' – all parts'}</h2>{''.join(parts)}<section id="comments" style="margin-top:2.5em"><h2>Kommentare / Comments</h2><p style="opacity:.8">Fragen oder Gedanken zu diesem Buch? Schreib uns hier — nur ein Name nötig, kein Konto. · Questions or thoughts? Leave a comment — just a name, no account.</p><div id="hakanai-connect"></div><script async src="https://connect.hakanai.io/embed.js" data-key="{E(HAKANAI_SITE_KEY)}" data-page-id="{slug}" data-theme="dark" data-locale="en"></script></section></article></main>'''
         os.makedirs(f'{OUT}/books/{slug}')
         open(f'{OUT}/books/{slug}/index.html','w').write(page(f'{title} – {author} | Full Audiobook Podcast',mdesc,f'/books/{slug}/',body,img,ld))
         entries.append(dict(title=title,author=author,slug=slug,img=img,n=len(lst),date=max(email.utils.parsedate_to_datetime(x['date']) for x in lst)))
